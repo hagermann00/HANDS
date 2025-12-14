@@ -435,6 +435,24 @@ app.post('/api/parse', async (req, res) => {
         }
     }
 
+    // 🤖 MULTI-AGENT ORCHESTRATION: Check if multiAgent directive exists
+    let multiAgent = null;
+    if (parsed && parsed.multiAgent) {
+        multiAgent = parsed.multiAgent;
+        console.log(`🤖 Multi-Agent requested: ${multiAgent.strategy} with ${multiAgent.agents} agents`);
+    }
+    // Auto-suggest multi-agent for large tasks
+    if (!multiAgent && (templates.length >= 3 || steps.length >= 5)) {
+        multiAgent = {
+            suggested: true,
+            enabled: false,
+            strategy: 'sequential',
+            agents: 2,
+            reason: 'Large task detected - consider enabling multi-agent for verification'
+        };
+        warnings.push('💡 TIP: This is a large task. Consider enabling multi-agent verification.');
+    }
+
     const result = {
         detectedFormat: detectedFormat,
         originalInput: trimmed,
@@ -444,6 +462,7 @@ app.post('/api/parse', async (req, res) => {
         templates: templates,
         warnings: warnings,
         overallRisk: overallRisk,
+        multiAgent: multiAgent,
         requiresConfirmation: true,
         planId: `plan_${Date.now()}`,
         generatedAt: new Date().toISOString(),

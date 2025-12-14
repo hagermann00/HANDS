@@ -1,9 +1,9 @@
 [
   {
-    "id": "plan_1765680393433",
+    "id": "plan_1765706659907",
     "status": "pending",
-    "queuedAt": "2025-12-14T02:46:38.846Z",
-    "originalCommand": "Step 1: Environment & Toolchain VerificationWhat This DoesVerifies that the \"Antigravity\" agent can execute basic shell commands and return output. We check for Node.js and Git availability, which are",
+    "queuedAt": "2025-12-14T10:04:33.791Z",
+    "originalCommand": "YAML Directive",
     "plan": [
       {
         "step": 1,
@@ -22,19 +22,47 @@
       {
         "step": 3,
         "action": "Apply template",
-        "template": "env_config_setup",
+        "template": "jwt_auth_setup",
         "type": "template",
         "risk": "safe"
       },
       {
         "step": 4,
         "action": "Apply template",
-        "template": "testing_setup",
+        "template": "database_setup",
         "type": "template",
         "risk": "safe"
       },
       {
         "step": 5,
+        "action": "Apply template",
+        "template": "deploy_static_site",
+        "type": "template",
+        "risk": "safe"
+      },
+      {
+        "step": 6,
+        "action": "Apply template",
+        "template": "file_upload_setup",
+        "type": "template",
+        "risk": "safe"
+      },
+      {
+        "step": 7,
+        "action": "Apply template",
+        "template": "logging_setup",
+        "type": "template",
+        "risk": "safe"
+      },
+      {
+        "step": 8,
+        "action": "Apply template",
+        "template": "testing_setup",
+        "type": "template",
+        "risk": "safe"
+      },
+      {
+        "step": 9,
         "action": "Apply template",
         "template": "frontend_setup",
         "type": "template",
@@ -44,7 +72,11 @@
     "templates": [
       "npm_project_init",
       "git_repo_setup",
-      "env_config_setup",
+      "jwt_auth_setup",
+      "database_setup",
+      "deploy_static_site",
+      "file_upload_setup",
+      "logging_setup",
       "testing_setup",
       "frontend_setup"
     ],
@@ -53,6 +85,6 @@
       "⚠️ DESTRUCTIVE OPERATION - Files may be deleted"
     ],
     "overallRisk": "danger",
-    "antigravityPrompt": "EXECUTE APPROVED DIRECTIVE FROM HANDS PROTOCOL:\n\nOriginal Request: \"Step 1: Environment & Toolchain VerificationWhat This DoesVerifies that the \"Antigravity\" agent can execute basic shell commands and return output. We check for Node.js and Git availability, which are\"\n\nTemplates to Apply: npm_project_init, git_repo_setup, env_config_setup, testing_setup, frontend_setup\n\nSteps:\n1. [template] Apply template: npm_project_init\n2. [template] Apply template: git_repo_setup\n3. [template] Apply template: env_config_setup\n4. [template] Apply template: testing_setup\n5. [template] Apply template: frontend_setup\n\nGO AHEAD - Execute all steps above. This directive was reviewed and approved by the user in Hands Protocol."
+    "antigravityPrompt": "EXECUTE APPROVED DIRECTIVE FROM HANDS PROTOCOL:\n\nOriginal Request: \"YAML Directive\"\n\nTemplates to Apply: npm_project_init, git_repo_setup, jwt_auth_setup, database_setup, deploy_static_site, file_upload_setup, logging_setup, testing_setup, frontend_setup\n\nSteps:\n1. [template] Apply template: npm_project_init\n2. [template] Apply template: git_repo_setup\n3. [template] Apply template: jwt_auth_setup\n4. [template] Apply template: database_setup\n5. [template] Apply template: deploy_static_site\n6. [template] Apply template: file_upload_setup\n7. [template] Apply template: logging_setup\n8. [template] Apply template: testing_setup\n9. [template] Apply template: frontend_setup\n\nGO AHEAD - Execute all steps above. This directive was reviewed and approved by the user in Hands Protocol."
   }
 ]

@@ -128,6 +128,75 @@ added 45 packages in 12s
 
 ---
 
+## 🤖 MULTI-AGENT ORCHESTRATION (Optional)
+
+For complex tasks, you can request **parallel agent execution** or **sequential verification**.
+
+### When to Request Multiple Agents
+- **Large refactors** (10+ files)
+- **Multi-step deployments** (build, test, deploy)
+- **High-risk operations** (want a double-check)
+- **Full-stack tasks** (frontend + backend + database simultaneously)
+
+### How to Request Multi-Agent Execution
+
+Add the `"multiAgent"` directive to your output:
+
+```json
+{
+  "type": "directive",
+  "description": "Full-stack application setup",
+  "multiAgent": {
+    "enabled": true,
+    "strategy": "parallel | sequential | verify",
+    "agents": 2,
+    "reason": "Complex task spanning frontend and backend"
+  },
+  "steps": [...]
+}
+```
+
+### Strategies
+
+| Strategy | Behavior |
+|----------|----------|
+| `parallel` | Multiple agents work on different parts simultaneously |
+| `sequential` | One agent executes, second agent reviews results |
+| `verify` | Primary agent executes, secondary agent runs tests/checks |
+
+### Example: Request Double-Check
+
+```json
+{
+  "type": "directive",
+  "description": "Deploy to production",
+  "multiAgent": {
+    "enabled": true,
+    "strategy": "verify",
+    "agents": 2,
+    "reason": "Production deployment - needs verification"
+  },
+  "steps": [
+    {"action": "command", "content": "npm run build", "agent": 1},
+    {"action": "command", "content": "npm run test", "agent": 2},
+    {"action": "command", "content": "npm run deploy", "agent": 1}
+  ]
+}
+```
+
+### Practical Limitations
+
+| Limit | Value | Notes |
+|-------|-------|-------|
+| **Max Concurrent Agents** | 3-4 | Based on API rate limits |
+| **Combined Rate Limit** | 45 RPM | 3 Gemini keys × 15 RPM each |
+| **Daily Quota** | ~4,500 requests | Across all agents combined |
+| **Recommended for Speed** | 2 agents | Optimal balance of speed vs quota |
+
+⚠️ **WARNING**: Running 4+ agents simultaneously may trigger rate limits. Antigravity will auto-failover to backup API keys, but queuing may occur.
+
+---
+
 ## 🛠️ AVAILABLE SKILL TEMPLATES (23 Total)
 
 Reference these by name. Antigravity knows how to execute each one:
