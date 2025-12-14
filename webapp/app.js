@@ -459,6 +459,23 @@ if (fireToAntigravityBtn) {
     fireToAntigravityBtn.addEventListener('click', async () => {
         if (!currentPlanData) return alert('No plan to fire.');
 
+        // DOUBLE-CHECK CONFIRMATION
+        const stepCount = currentPlanData.plan?.length || 0;
+        const templateCount = currentPlanData.templates?.length || 0;
+        const risk = currentPlanData.overallRisk?.toUpperCase() || 'UNKNOWN';
+
+        const confirmMsg = `⚠️ CONFIRM EXECUTION ⚠️\n\n` +
+            `You are about to fire this directive to Antigravity:\n\n` +
+            `"${currentPlanData.originalCommand}"\n\n` +
+            `📋 Steps: ${stepCount}\n` +
+            `📦 Templates: ${templateCount}\n` +
+            `⚠️ Risk Level: ${risk}\n\n` +
+            `Are you sure you want to proceed?`;
+
+        if (!confirm(confirmMsg)) {
+            return; // User cancelled
+        }
+
         showSpinner('🔥 Firing to Antigravity…');
 
         try {
@@ -530,5 +547,182 @@ if (cancelPlanBtn) {
         if (queueStatus) queueStatus.classList.add('hidden');
     });
 }
+
+/* ---------- QUEUE MONITOR ---------- */
+const queueList = document.getElementById('queueList');
+const queueCount = document.getElementById('queueCount');
+const refreshQueueBtn = document.getElementById('refreshQueueBtn');
+const clearQueueBtn = document.getElementById('clearQueueBtn');
+
+async function loadQueue() {
+    try {
+        const res = await fetch('/api/queue');
+        const queue = await res.json();
+
+        // Update count
+        if (queueCount) {
+            queueCount.textContent = queue.length;
+        }
+
+        // Render queue
+        if (queueList) {
+            if (queue.length === 0) {
+                queueList.innerHTML = '<p class="empty-queue">No pending tasks. Fire a directive above to queue it.</p>';
+            } else {
+                queueList.innerHTML = queue.map(item => `
+                    <div class="queue-item" data-id="${item.id}">
+                        <div class="queue-item-header">
+                            <span class="queue-item-id">${item.id}</span>
+                            <span class="queue-item-status ${item.status}">${item.status}</span>
+                        </div>
+                        <div class="queue-item-command">"${item.originalCommand}"</div>
+                        <div class="queue-item-meta">
+                            <span>📦 ${item.templates?.length || 0} templates</span>
+                            <span>📋 ${item.plan?.length || 0} steps</span>
+                            <span>⏰ ${new Date(item.queuedAt).toLocaleTimeString()}</span>
+                        </div>
+                        <div class="queue-item-actions">
+                            <button class="execute-btn" onclick="executeQueueItem('${item.id}')">▶️ Execute</button>
+                            <button class="remove-btn" onclick="removeQueueItem('${item.id}')">🗑️ Remove</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch (e) {
+        console.error('Failed to load queue:', e);
+    }
+}
+
+async function executeQueueItem(planId) {
+    // Mark as executing in UI
+    const item = document.querySelector(`.queue-item[data-id="${planId}"]`);
+    if (item) {
+        const statusEl = item.querySelector('.queue-item-status');
+        if (statusEl) {
+            statusEl.textContent = 'EXECUTING';
+            statusEl.className = 'queue-item-status executing';
+        }
+    }
+
+    // For now, show a message - actual execution goes to Antigravity
+    alert(`Task ${planId} marked for execution!\n\nAntigravity will pick this up automatically.\n\n(In a full integration, this would trigger immediate execution.)`);
+}
+
+async function removeQueueItem(planId) {
+    try {
+        const res = await fetch(`/api/queue/${planId}`, { method: 'DELETE' });
+        const result = await res.json();
+
+        if (result.status === 'removed') {
+            loadQueue(); // Refresh the list
+        }
+    } catch (e) {
+        alert('Failed to remove: ' + e.message);
+    }
+}
+
+async function clearAllQueue() {
+    if (!confirm('Clear all pending tasks?')) return;
+
+    try {
+        const res = await fetch('/api/queue');
+        const queue = await res.json();
+
+        for (const item of queue) {
+            await fetch(`/api/queue/${item.id}`, { method: 'DELETE' });
+        }
+
+        loadQueue();
+    } catch (e) {
+        alert('Failed to clear: ' + e.message);
+    }
+}
+
+// Wire up buttons
+if (refreshQueueBtn) {
+    refreshQueueBtn.addEventListener('click', loadQueue);
+}
+
+if (clearQueueBtn) {
+    clearQueueBtn.addEventListener('click', clearAllQueue);
+}
+
+// Auto-refresh queue every 5 seconds
+setInterval(loadQueue, 5000);
+
+// Initial load
+loadQueue();
+
+/* ---------- TASK HISTORY ---------- */
+const historyList = document.getElementById('historyList');
+const historyCount = document.getElementById('historyCount');
+const refreshHistoryBtn = document.getElementById('refreshHistoryBtn');
+const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+async function loadHistory() {
+    try {
+        const res = await fetch('/api/history');
+        const history = await res.json();
+
+        // Update count
+        if (historyCount) {
+            historyCount.textContent = history.length;
+        }
+
+        // Render history
+        if (historyList) {
+            if (history.length === 0) {
+                historyList.innerHTML = '<p class="empty-history">No completed tasks yet.</p>';
+            } else {
+                historyList.innerHTML = history.map(item => `
+                    <div class="history-item ${item.status === 'failed' ? 'failed' : ''}">
+                        <div class="history-item-header">
+                            <span class="history-item-id">${item.id}</span>
+                            <span class="history-item-status ${item.status}">${item.status}</span>
+                        </div>
+                        <div class="history-item-command">"${item.originalCommand}"</div>
+                        <div class="history-item-meta">
+                            <span>📦 ${item.templates?.length || 0} templates</span>
+                            <span>📋 ${item.plan?.length || 0} steps</span>
+                            <span>⏰ Queued: ${item.queuedAt ? new Date(item.queuedAt).toLocaleTimeString() : 'N/A'}</span>
+                            <span>✅ Done: ${new Date(item.completedAt).toLocaleTimeString()}</span>
+                        </div>
+                        ${item.result ? `<div class="history-item-result">${typeof item.result === 'string' ? item.result : JSON.stringify(item.result, null, 2)}</div>` : ''}
+                        ${item.error ? `<div class="history-item-result error">❌ ${item.error}</div>` : ''}
+                    </div>
+                `).join('');
+            }
+        }
+    } catch (e) {
+        console.error('Failed to load history:', e);
+    }
+}
+
+async function clearHistory() {
+    if (!confirm('Clear all task history?')) return;
+
+    try {
+        await fetch('/api/history', { method: 'DELETE' });
+        loadHistory();
+    } catch (e) {
+        alert('Failed to clear: ' + e.message);
+    }
+}
+
+// Wire up history buttons
+if (refreshHistoryBtn) {
+    refreshHistoryBtn.addEventListener('click', loadHistory);
+}
+
+if (clearHistoryBtn) {
+    clearHistoryBtn.addEventListener('click', clearHistory);
+}
+
+// Auto-refresh history every 10 seconds
+setInterval(loadHistory, 10000);
+
+// Initial load
+loadHistory();
 
 /* ---------- END OF FILE ---------- */

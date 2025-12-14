@@ -595,6 +595,98 @@ function formatForAntigravity(command, plan, templates) {
     return prompt;
 }
 
+// ---------- TASK HISTORY ----------
+const historyFile = path.join(queueDir, 'history.json');
+
+// GET /api/history - Get completed tasks
+app.get('/api/history', (req, res) => {
+    if (!fs.existsSync(historyFile)) {
+        return res.json([]);
+    }
+    try {
+        const history = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
+        // Return most recent first
+        res.json(history.reverse().slice(0, 50));
+    } catch (e) {
+        res.json([]);
+    }
+});
+
+// POST /api/history - Add completed task to history
+app.post('/api/history', (req, res) => {
+    const { planId, status, result, error } = req.body;
+
+    if (!planId) {
+        return res.status(400).json({ error: 'Missing planId' });
+    }
+
+    // Load existing history
+    let history = [];
+    if (fs.existsSync(historyFile)) {
+        try {
+            history = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
+        } catch (e) {
+            history = [];
+        }
+    }
+
+    // Find the task in pending queue or individual files
+    let task = null;
+    const taskFile = path.join(queueDir, `${planId}.json`);
+    if (fs.existsSync(taskFile)) {
+        try {
+            task = JSON.parse(fs.readFileSync(taskFile, 'utf8'));
+        } catch (e) { }
+    }
+
+    // Create history entry
+    const historyEntry = {
+        id: planId,
+        originalCommand: task?.originalCommand || 'Unknown',
+        templates: task?.templates || [],
+        plan: task?.plan || [],
+        status: status || 'completed',
+        result: result || null,
+        error: error || null,
+        queuedAt: task?.queuedAt || null,
+        completedAt: new Date().toISOString()
+    };
+
+    history.push(historyEntry);
+
+    // Keep only last 100 entries
+    if (history.length > 100) {
+        history = history.slice(-100);
+    }
+
+    fs.writeFileSync(historyFile, JSON.stringify(history, null, 2), 'utf8');
+
+    // Remove from pending queue
+    const pendingFile = path.join(queueDir, 'pending.json');
+    if (fs.existsSync(pendingFile)) {
+        try {
+            let pending = JSON.parse(fs.readFileSync(pendingFile, 'utf8'));
+            pending = pending.filter(item => item.id !== planId);
+            fs.writeFileSync(pendingFile, JSON.stringify(pending, null, 2), 'utf8');
+        } catch (e) { }
+    }
+
+    // Remove individual task file
+    if (fs.existsSync(taskFile)) {
+        fs.unlinkSync(taskFile);
+    }
+
+    console.log(`✅ Task completed: ${planId} (${status})`);
+
+    res.json({ status: 'added', entry: historyEntry });
+});
+
+// DELETE /api/history - Clear history
+app.delete('/api/history', (req, res) => {
+    fs.writeFileSync(historyFile, '[]', 'utf8');
+    res.json({ status: 'cleared' });
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 Hands Protocol server listening on http://localhost:${PORT}`);
