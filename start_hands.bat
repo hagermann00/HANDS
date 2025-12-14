@@ -39,5 +39,17 @@ ping -n 3 127.0.0.1 > nul
 rem ---- Open default browser to the app ----
 start "" "http://localhost:5000"
 
+rem ---- Launch the Floating Hands Launcher (AHK Icon) ----
+if exist "C:\Y-OS\Y-IT_ENGINES\HANDS\HandsLauncher.ahk" (
+    start "" "C:\Y-OS\Y-IT_ENGINES\HANDS\HandsLauncher.ahk"
+    echo [OK] Floating Launcher started.
+) else (
+    echo [WARN] HandsLauncher.ahk not found - skipping floating icon.
+)
+
+rem ---- Open Antigravity Chat (VS Code with HANDS workspace) ----
+rem This opens VS Code to the HANDS folder so Antigravity can monitor/execute
+start "" code "C:\Y-OS\Y-IT_ENGINES\HANDS"
+
 rem Keep the batch window open so you can see any messages
 pause
