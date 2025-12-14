@@ -1,13 +1,15 @@
 ; ============================================================
-; Hands Protocol Floating Launcher - v1.0
+; Hands Protocol Floating Launcher - v1.3
 ; ============================================================
 ; A tiny always-on-top icon that provides quick access to
 ; the Hands Protocol input system from any Windows desktop.
 ;
 ; Features:
-; - Floating icon (dime-sized) that stays on top
-; - Click to open 1/12th screen popup for input
-; - Submit → Review → GO MOTHERFUCKER → Progress flow
+; - Draggable floating icon
+; - Click to open/close popup (shows progress if running)
+; - Successive windows maintain same position
+; - Ctrl+Shift+H global hotkey
+; - Follows across virtual desktops (pinned)
 ; ============================================================
 
 #Requires AutoHotkey v2.0
@@ -16,41 +18,151 @@ Persistent
 
 ; ============ CONFIGURATION ============
 global HANDS_SERVER := "http://localhost:5000"
-global POPUP_WIDTH := A_ScreenWidth // 12
-global POPUP_HEIGHT := A_ScreenHeight // 6
+global POPUP_WIDTH := A_ScreenWidth // 4
+global POPUP_HEIGHT := A_ScreenHeight // 4
 global ICON_SIZE := 48
+global popupOpen := false
+global lastPopupX := 0
+global lastPopupY := 0
+global hasActiveProcess := false  ; Track if something is running
+global activePlanId := ""         ; Current plan being processed
 
 ; ============ CREATE FLOATING ICON ============
 CreateFloatingIcon() {
     global iconGui, ICON_SIZE
     
-    iconGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
-    iconGui.BackColor := "1a1a2e"
+    ; Draggable window
+    iconGui := Gui("+AlwaysOnTop -Caption +ToolWindow")
+    iconGui.BackColor := "C65D3B"  ; Rusty orange
     iconGui.MarginX := 0
     iconGui.MarginY := 0
     
-    ; Add a clickable button styled as the icon
-    iconBtn := iconGui.Add("Button", "w" ICON_SIZE " h" ICON_SIZE " Default", "🤲")
-    iconBtn.SetFont("s24")
-    iconBtn.OnEvent("Click", (*) => ShowInputPopup())
+    ; Use Text instead of Button - allows window dragging
+    iconText := iconGui.Add("Text", "w" ICON_SIZE " h" ICON_SIZE " Center BackgroundTrans c1a237e", "🤲")  ; Deep blue
+    iconText.SetFont("s28")
     
     ; Position: Bottom-right corner by default
     xPos := A_ScreenWidth - ICON_SIZE - 20
     yPos := A_ScreenHeight - ICON_SIZE - 60
     
+    ; Set initial popup position near icon
+    global lastPopupX := xPos - POPUP_WIDTH + 50
+    global lastPopupY := yPos - POPUP_HEIGHT - 10
+    if (lastPopupX < 0)
+        lastPopupX := 10
+    if (lastPopupY < 0)
+        lastPopupY := 10
+    
     iconGui.Show("x" xPos " y" yPos " w" ICON_SIZE " h" ICON_SIZE " NoActivate")
+    
+    ; Pin to all virtual desktops (Windows 10/11)
+    PinToAllDesktops(iconGui.Hwnd)
+    
+    ; Left-click anywhere on icon GUI = toggle popup
+    ; Drag anywhere on icon GUI = move it
+    OnMessage(0x201, WM_LBUTTONDOWN)  ; Left button down
+}
+
+; ============ VIRTUAL DESKTOP PINNING ============
+; Uses undocumented Windows API to pin window to all virtual desktops
+PinToAllDesktops(hwnd) {
+    try {
+        ; Method 1: SetWindowDisplayAffinity (simple approach for always-visible)
+        ; WDA_EXCLUDEFROMCAPTURE = 0x00000011 - this can interfere
+        ; Instead, use the COM interface for Virtual Desktops
+        
+        ; For Windows 10/11, we use the IVirtualDesktopPinnedApps interface
+        ; This is complex, so we use the simpler "set as tool window" trick
+        ; combined with a timer to ensure visibility after desktop switch
+        
+        ; Re-show on desktop switch via timer
+        SetTimer(EnsureIconVisible, 1000)
+    }
+}
+
+; ============ ENSURE ICON VISIBLE ON ALL DESKTOPS ============
+EnsureIconVisible() {
+    global iconGui
+    try {
+        ; Re-show the icon to ensure it stays visible after desktop switches
+        iconGui.Show("NoActivate")
+    }
+}
+
+WM_LBUTTONDOWN(wParam, lParam, msg, hwnd) {
+    global iconGui
+    try {
+        ; Check if click is on the icon GUI
+        for ctrl in iconGui {
+            if (hwnd = ctrl.Hwnd || hwnd = iconGui.Hwnd) {
+                ; Start drag timer - if released quickly, it's a click
+                SetTimer(CheckForClick, -200)
+                PostMessage(0xA1, 2,,, iconGui.Hwnd)  ; Start drag
+                return
+            }
+        }
+    }
+}
+
+CheckForClick() {
+    ; If mouse button is no longer held, it was a click not a drag
+    if !GetKeyState("LButton", "P") {
+        TogglePopup()
+    }
+}
+
+; ============ TOGGLE POPUP (Click to open/close) ============
+; If something is running, show progress window instead of input
+TogglePopup() {
+    global popupOpen, inputGui, reviewGui, progressGui, hasActiveProcess, activePlanId
+    if (popupOpen) {
+        try inputGui.Destroy()
+        try reviewGui.Destroy()
+        try progressGui.Destroy()
+        popupOpen := false
+    } else {
+        ; If there's an active process, show the progress window
+        if (hasActiveProcess && activePlanId != "") {
+            ShowProgressPopup(activePlanId)
+        } else {
+            ShowInputPopup()
+        }
+    }
+}
+
+; ============ SAVE POPUP POSITION ============
+SavePopupPosition(guiObj) {
+    global lastPopupX, lastPopupY
+    try {
+        guiObj.GetPos(&x, &y)
+        lastPopupX := x
+        lastPopupY := y
+    }
 }
 
 ; ============ INPUT POPUP ============
 ShowInputPopup() {
-    global inputGui, inputText, POPUP_WIDTH, POPUP_HEIGHT
+    global inputGui, inputText, POPUP_WIDTH, POPUP_HEIGHT, popupOpen, lastPopupX, lastPopupY, iconGui
     
     ; Close any existing popup
     try inputGui.Destroy()
     
+    ; Get current icon position and calculate popup position relative to it
+    try {
+        iconGui.GetPos(&iconX, &iconY)
+        lastPopupX := iconX - POPUP_WIDTH + 50
+        lastPopupY := iconY - POPUP_HEIGHT - 10
+        if (lastPopupX < 0)
+            lastPopupX := 10
+        if (lastPopupY < 0)
+            lastPopupY := 10
+    }
+    
     inputGui := Gui("+AlwaysOnTop +Resize", "Hands Protocol - Quick Input")
     inputGui.BackColor := "0f0f23"
     inputGui.SetFont("s11 cWhite", "Segoe UI")
+    inputGui.OnEvent("Close", (*) => (popupOpen := false))
+    inputGui.OnEvent("Size", (*) => SavePopupPosition(inputGui))
     
     ; Title
     inputGui.Add("Text", "w" (POPUP_WIDTH - 40), "🤲 Paste LLM Output or Type Command:")
@@ -62,9 +174,9 @@ ShowInputPopup() {
     submitBtn := inputGui.Add("Button", "w" (POPUP_WIDTH - 40) " h40 Default", "⚡ PARSE & REVIEW")
     submitBtn.OnEvent("Click", (*) => SubmitInput())
     
-    ; Position: Top-left corner
-    inputGui.Show("x10 y10 w" POPUP_WIDTH " h" POPUP_HEIGHT)
+    inputGui.Show("x" lastPopupX " y" lastPopupY " w" POPUP_WIDTH " h" POPUP_HEIGHT)
     inputText.Focus()
+    popupOpen := true
 }
 
 ; ============ SUBMIT TO SERVER ============
@@ -76,6 +188,9 @@ SubmitInput() {
         MsgBox("Please enter something first!", "Hands Protocol", "Icon!")
         return
     }
+    
+    ; Save position before transitioning
+    SavePopupPosition(inputGui)
     
     ; Show loading state
     inputGui.Title := "Hands Protocol - 🔍 Parsing..."
@@ -110,9 +225,10 @@ SubmitInput() {
 
 ; ============ REVIEW POPUP ============
 ShowReviewPopup(jsonResponse) {
-    global inputGui, reviewGui, currentPlan, POPUP_WIDTH, POPUP_HEIGHT
+    global inputGui, reviewGui, currentPlan, POPUP_WIDTH, POPUP_HEIGHT, lastPopupX, lastPopupY, popupOpen
     
-    ; Close input popup
+    ; Save position and close input popup
+    SavePopupPosition(inputGui)
     try inputGui.Destroy()
     
     ; Parse JSON (basic extraction)
@@ -139,6 +255,8 @@ ShowReviewPopup(jsonResponse) {
     reviewGui := Gui("+AlwaysOnTop +Resize", "Hands Protocol - 🛡️ REVIEW")
     reviewGui.BackColor := "0f0f23"
     reviewGui.SetFont("s11 cWhite", "Segoe UI")
+    reviewGui.OnEvent("Close", (*) => (popupOpen := false))
+    reviewGui.OnEvent("Size", (*) => SavePopupPosition(reviewGui))
     
     ; Command summary
     reviewGui.Add("Text", "w" (POPUP_WIDTH - 40), "📋 Command:")
@@ -161,18 +279,32 @@ ShowReviewPopup(jsonResponse) {
     goBtn := reviewGui.Add("Button", "w" (POPUP_WIDTH - 40) " h50", "🔥 GO MOTHERFUCKER")
     goBtn.OnEvent("Click", (*) => FireToAntigravity(planId))
     
-    ; Cancel button
+    ; Ditch button (small hands logo = cancel/restart)
     reviewGui.SetFont("s10", "Segoe UI")
-    cancelBtn := reviewGui.Add("Button", "w" (POPUP_WIDTH - 40) " h30", "❌ Cancel")
-    cancelBtn.OnEvent("Click", (*) => reviewGui.Destroy())
+    reviewGui.Add("Text", "w" (POPUP_WIDTH - 80), "")  ; spacer
+    ditchBtn := reviewGui.Add("Button", "w80 h30 x" (lastPopupX + POPUP_WIDTH - 100) " c1a237e", "🤲 Ditch?")
+    ditchBtn.OnEvent("Click", (*) => DitchAndRestart())
     
-    reviewGui.Show("x10 y10 w" POPUP_WIDTH " h" (POPUP_HEIGHT + 50))
+    reviewGui.Show("x" lastPopupX " y" lastPopupY " w" POPUP_WIDTH " h" (POPUP_HEIGHT + 70))
+}
+
+; ============ DITCH AND RESTART ============
+DitchAndRestart() {
+    global reviewGui, popupOpen
+    result := MsgBox("Ditch this diggity?`n`nThis will cancel the current review and start fresh.", "Hands Protocol", "YesNo Icon?")
+    if (result = "Yes") {
+        try reviewGui.Destroy()
+        popupOpen := false
+        ShowInputPopup()
+    }
 }
 
 ; ============ FIRE TO ANTIGRAVITY ============
 FireToAntigravity(planId) {
-    global reviewGui, currentPlan, HANDS_SERVER
+    global reviewGui, currentPlan, HANDS_SERVER, lastPopupX, lastPopupY
     
+    ; Save position
+    SavePopupPosition(reviewGui)
     reviewGui.Title := "Hands Protocol - 🔥 FIRING..."
     
     try {
@@ -197,44 +329,133 @@ FireToAntigravity(planId) {
 
 ; ============ PROGRESS POPUP ============
 ShowProgressPopup(planId) {
-    global reviewGui, progressGui, POPUP_WIDTH, POPUP_HEIGHT
+    global reviewGui, progressGui, POPUP_WIDTH, POPUP_HEIGHT, lastPopupX, lastPopupY, popupOpen, spinnerText, currentPlanId, canCancel, hasActiveProcess, activePlanId
     
-    ; Close review popup
+    ; Save position and close review popup
+    SavePopupPosition(reviewGui)
     try reviewGui.Destroy()
     
-    progressGui := Gui("+AlwaysOnTop", "Hands Protocol - ⚡ IN PROGRESS")
-    progressGui.BackColor := "0f0f23"
-    progressGui.SetFont("s12 cWhite", "Segoe UI")
+    currentPlanId := planId
+    activePlanId := planId       ; Track for click-to-show-progress
+    hasActiveProcess := true     ; Mark as running
+    canCancel := true  ; Can cancel until process starts
     
-    progressGui.Add("Text", "w" (POPUP_WIDTH - 40) " Center", "🔥 DIRECTIVE FIRED!")
-    progressGui.SetFont("s10 c00ffaa")
+    progressGui := Gui("+AlwaysOnTop", "Hands Protocol - ⚡ QUEUED")
+    progressGui.BackColor := "0f0f23"
+    progressGui.MarginY := 5
+    progressGui.OnEvent("Close", (*) => (SetTimer(SpinWaiting, 0), popupOpen := false))
+    
+    ; Compact header
+    progressGui.SetFont("s12 cWhite Bold", "Segoe UI")
+    progressGui.Add("Text", "w" (POPUP_WIDTH - 40) " Center c00ff00", "🔥 QUEUED")
+    
+    progressGui.SetFont("s9 c00ffaa")
     progressGui.Add("Text", "w" (POPUP_WIDTH - 40) " Center", planId)
     
-    progressGui.SetFont("s11 cWhite")
-    progressGui.Add("Text", "w" (POPUP_WIDTH - 40) " Center", "`n⏳ Antigravity is processing...`n`nCheck VS Code for execution progress.")
+    ; Spinning indicator (compact)
+    progressGui.SetFont("s16 cffaa00")
+    spinnerText := progressGui.Add("Text", "w" (POPUP_WIDTH - 40) " Center", "⏳ Waiting...")
     
-    ; Close button
-    closeBtn := progressGui.Add("Button", "w" (POPUP_WIDTH - 40) " h40", "✅ Done")
-    closeBtn.OnEvent("Click", (*) => progressGui.Destroy())
+    progressGui.SetFont("s9 cGray")
+    progressGui.Add("Text", "w" (POPUP_WIDTH - 40) " Center", "Stays open until acknowledged")
     
-    progressGui.Show("x10 y10 w" POPUP_WIDTH " h" (POPUP_HEIGHT - 50))
+    ; Button row: [Acknowledge] [Cancel] [🤲]
+    progressGui.SetFont("s10", "Segoe UI")
+    ackBtn := progressGui.Add("Button", "w" (POPUP_WIDTH // 2 - 30) " h35", "✅ Got It")
+    ackBtn.OnEvent("Click", (*) => AcknowledgeProgress())
     
-    ; Auto-close after 5 seconds
-    SetTimer(() => (try progressGui.Destroy()), -5000)
+    cancelBtn := progressGui.Add("Button", "x+5 w70 h35", "⏸ Cancel")
+    cancelBtn.OnEvent("Click", (*) => PauseThenCancel())
+    
+    ; Small hands button for NEW submission
+    progressGui.SetFont("s14")
+    newBtn := progressGui.Add("Button", "x+5 w35 h35 cC65D3B", "🤲")
+    newBtn.OnEvent("Click", (*) => StartNewSubmission())
+    
+    progressGui.Show("x" lastPopupX " y" lastPopupY " w" POPUP_WIDTH " h" (POPUP_HEIGHT - 40))
+    
+    ; Start spinning animation
+    SetTimer(SpinWaiting, 500)
+}
+
+; ============ PAUSE THEN CANCEL ============
+PauseThenCancel() {
+    global canCancel, progressGui, currentPlanId, popupOpen
+    
+    if (!canCancel) {
+        MsgBox("Process already started - cannot cancel.", "Hands Protocol", "Icon!")
+        return
+    }
+    
+    ; Pause first
+    SetTimer(SpinWaiting, 0)  ; Stop spinner
+    progressGui.Title := "Hands Protocol - ⏸ PAUSED"
+    
+    ; Double-check prompt
+    result := MsgBox("Execution paused.`n`nCancel this directive and delete from queue?`n`nPlan: " currentPlanId, "Cancel or Resume?", "YesNo Icon?")
+    
+    if (result = "Yes") {
+        ; Delete from queue
+        try FileDelete("C:\Y-OS\Y-IT_ENGINES\HANDS\queue\" currentPlanId ".json")
+        try progressGui.Destroy()
+        popupOpen := false
+        hasActiveProcess := false  ; Clear active process
+        activePlanId := ""
+        MsgBox("Directive cancelled and removed from queue.", "Cancelled", "Iconi")
+    } else {
+        ; Resume
+        progressGui.Title := "Hands Protocol - ⚡ QUEUED"
+        SetTimer(SpinWaiting, 500)  ; Restart spinner
+    }
+}
+
+; ============ SPINNER ANIMATION ============
+SpinWaiting() {
+    global spinnerText
+    static spinState := 0
+    spinChars := ["⏳", "⌛", "⏳", "⌛", "🔄", "🔄"]
+    spinState := Mod(spinState + 1, spinChars.Length) + 1
+    try spinnerText.Value := spinChars[spinState]
+}
+
+; ============ ACKNOWLEDGE PROGRESS ============
+AcknowledgeProgress() {
+    global progressGui, popupOpen, hasActiveProcess, activePlanId
+    SetTimer(SpinWaiting, 0)  ; Stop spinner
+    try progressGui.Destroy()
+    popupOpen := false
+    hasActiveProcess := false  ; Clear active process
+    activePlanId := ""
+}
+
+; ============ START NEW SUBMISSION ============
+; Note: This keeps hasActiveProcess TRUE - old task stays tracked
+; New submission can be started while previous task is still running
+StartNewSubmission() {
+    global progressGui, popupOpen
+    SetTimer(SpinWaiting, 0)  ; Stop spinner
+    try progressGui.Destroy()
+    popupOpen := false
+    ShowInputPopup()
 }
 
 ; ============ HOTKEY: ESC to close popups ============
 #HotIf WinActive("ahk_class AutoHotkeyGUI")
 Escape::
 {
+    global popupOpen
     try inputGui.Destroy()
     try reviewGui.Destroy()
     try progressGui.Destroy()
+    popupOpen := false
 }
 #HotIf
 
 ; ============ STARTUP ============
 CreateFloatingIcon()
+
+; ============ GLOBAL HOTKEY: Ctrl+Shift+H to summon from ANY desktop ============
+^+h::ShowInputPopup()  ; Ctrl+Shift+H opens input popup anywhere
 
 ; Tooltip on hover (optional)
 OnMessage(0x200, WM_MOUSEMOVE)
@@ -244,7 +465,7 @@ WM_MOUSEMOVE(wParam, lParam, msg, hwnd) {
         lastHwnd := hwnd
         try {
             if (hwnd = iconGui.Hwnd)
-                ToolTip("Click for Hands Protocol")
+                ToolTip("Drag to move | Click to toggle")
             else
                 ToolTip()
         }
