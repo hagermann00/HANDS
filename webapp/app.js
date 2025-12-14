@@ -16,11 +16,55 @@ function showSpinner(message) {
         msgEl.textContent = message || 'Processing…';
         overlay.classList.remove('hidden');
     }
+    logActivity(`⏳ ${message || 'Processing...'}`);
 }
 function hideSpinner() {
     const overlay = document.getElementById('spinnerOverlay');
     if (overlay) overlay.classList.add('hidden');
 }
+
+/* ---------- LIVE ACTIVITY FEED ---------- */
+const activityFeed = document.getElementById('activityFeed');
+const connectionStatus = document.getElementById('connectionStatus');
+const MAX_ACTIVITY_ITEMS = 10;
+
+function logActivity(message, isActive = false) {
+    if (!activityFeed) return;
+
+    const timestamp = new Date().toLocaleTimeString();
+    const item = document.createElement('div');
+    item.className = 'activity-item' + (isActive ? ' active' : '');
+    item.textContent = `[${timestamp}] ${message}`;
+
+    // Add to top
+    activityFeed.insertBefore(item, activityFeed.firstChild);
+
+    // Limit items
+    while (activityFeed.children.length > MAX_ACTIVITY_ITEMS) {
+        activityFeed.removeChild(activityFeed.lastChild);
+    }
+}
+
+function updateConnectionStatus(connected) {
+    if (!connectionStatus) return;
+    connectionStatus.textContent = connected ? '● Connected' : '● Disconnected';
+    connectionStatus.className = 'connection-status ' + (connected ? 'connected' : 'disconnected');
+}
+
+// Check server connection
+async function checkConnection() {
+    try {
+        const res = await fetch('/api/queue');
+        updateConnectionStatus(res.ok);
+    } catch (e) {
+        updateConnectionStatus(false);
+    }
+}
+
+// Check connection every 10 seconds
+setInterval(checkConnection, 10000);
+checkConnection();
+
 
 /* ---------- LLM PRIMER COPY ---------- */
 const copyPrimerBtn = document.getElementById('copyPrimerBtn');
@@ -435,6 +479,24 @@ function displayPlan(plan) {
     const warningsSection = document.getElementById('warningsSection');
     if (warningsSection) {
         warningsSection.style.display = plan.warnings.length > 0 ? 'block' : 'none';
+
+        // UI SAFEGUARD: If we detect the specific ROOT BLOCK warning, make it scary red
+        if (plan.workingDirectory === "BLOCKED_ROOT_PROTECTION") {
+            warningsSection.style.border = "2px solid #ff4444";
+            warningsSection.style.backgroundColor = "rgba(255, 0, 0, 0.1)";
+
+            // Disable the fire button aggressively
+            if (fireToAntigravityBtn) {
+                fireToAntigravityBtn.disabled = true;
+                fireToAntigravityBtn.textContent = "🛑 BLOCKED: UNSAFE TARGET";
+                fireToAntigravityBtn.style.background = "#ff4444";
+                fireToAntigravityBtn.style.cursor = "not-allowed";
+            }
+        } else {
+            // Reset style
+            warningsSection.style.border = "";
+            warningsSection.style.backgroundColor = "";
+        }
     }
 
     planWarningsEl.innerHTML = '';
@@ -442,6 +504,14 @@ function displayPlan(plan) {
         plan.warnings.forEach(w => {
             const warningEl = document.createElement('div');
             warningEl.className = 'warning-item';
+
+            // Highlight the critical warning
+            if (w.includes("CRITICAL")) {
+                warningEl.classList.add('critical-warning');
+                warningEl.style.fontWeight = 'bold';
+                warningEl.style.color = '#ff4444';
+            }
+
             warningEl.innerHTML = `⚠️ ${w}`;
             planWarningsEl.appendChild(warningEl);
         });
@@ -595,6 +665,8 @@ async function loadQueue() {
 }
 
 async function executeQueueItem(planId) {
+    logActivity(`🔄 Executing task: ${planId}`, true);
+
     // Mark as executing in UI
     const item = document.querySelector(`.queue-item[data-id="${planId}"]`);
     if (item) {
@@ -606,6 +678,7 @@ async function executeQueueItem(planId) {
     }
 
     // For now, show a message - actual execution goes to Antigravity
+    logActivity(`📤 Task ${planId} sent to Antigravity`);
     alert(`Task ${planId} marked for execution!\n\nAntigravity will pick this up automatically.\n\n(In a full integration, this would trigger immediate execution.)`);
 }
 

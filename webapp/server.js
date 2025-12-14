@@ -420,6 +420,21 @@ app.post('/api/parse', async (req, res) => {
     // Overall risk assessment
     const overallRisk = assessRisk(trimmed);
 
+    // 🛡️ CRITICAL SAFETY: Check for Root Directory Overwrite
+    // Normalize paths for comparison
+    const serverRoot = path.resolve(__dirname, '..').toLowerCase();
+    const targetDir = workingDirectory ? path.resolve(workingDirectory).toLowerCase() : '';
+
+    // If target is Hands Root OR Server Dir, and we are running templates/files
+    if (targetDir && (targetDir === serverRoot || targetDir === __dirname.toLowerCase())) {
+        if (templates.length > 0 || steps.some(s => s.action === 'file' || s.action === 'write')) {
+            warnings.push("⛔ CRITICAL: Target is HANDS ROOT. Operation blocked to prevent self-destruction.");
+            warnings.push("➡️ FIX: Specify a sub-directory (e.g., C:\\Y-OS\\Y-IT_ENGINES\\HANDS\\my-new-project)");
+            // Force working directory to be unknown/empty to prevent execution
+            workingDirectory = "BLOCKED_ROOT_PROTECTION";
+        }
+    }
+
     const result = {
         detectedFormat: detectedFormat,
         originalInput: trimmed,
