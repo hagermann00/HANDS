@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hands Protocol – Multi‑Agent Orchestrator</title>
+  <meta name="description"
+    content="A web interface that routes LLM directives to Antigravity agents using modular instruction templates." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <main class="container">
+
+    <!-- HERO -->
+    <section class="hero">
+      <h1>Hands Protocol</h1>
+      <p class="subtitle">
+        Turn LLM‑generated directives into autonomous Antigravity workflows.
+      </p>
+
+      <!-- LLM PRIMER QUICK COPY -->
+      <div class="primer-copy-card">
+        <div class="primer-info">
+          <span class="primer-icon">🧠</span>
+          <div class="primer-text">
+            <strong>LLM Primer</strong>
+            <span>Copy context for ChatGPT, Claude, or Gemini</span>
+          </div>
+        </div>
+        <button id="copyPrimerBtn" class="copy-btn">📋 Copy to Clipboard</button>
+      </div>
+      <p id="copyStatus" class="copy-status hidden">✅ Copied! Paste into any LLM.</p>
+    </section>
+
+    <!-- TEMPLATE LIBRARY -->
+    <section class="template-browser">
+      <h2>Template Library</h2>
+
+      <div class="library-controls">
+        <select id="templateSelect" size="4"></select>
+        <div class="btn-group">
+          <button id="loadBtn" class="secondary">Load</button>
+          <button id="combineBtn" class="secondary">Combine</button>
+          <button id="quarantineBtn" class="danger">Quarantine</button>
+        </div>
+      </div>
+
+      <textarea id="templatePreview" rows="12" readonly></textarea>
+
+      <div class="edit-controls">
+        <button id="editBtn" class="secondary">Edit</button>
+        <button id="saveBtn" class="primary" hidden>Save</button>
+      </div>
+
+      <div class="meta">
+        <label>Comment:</label>
+        <input type="text" id="commentInput" placeholder="Add a note…" />
+        <label>Risk Score (0‑10):</label>
+        <input type="number" id="scoreInput" min="0" max="10" />
+        <button id="metaSaveBtn" class="primary">Save Meta</button>
+      </div>
+    </section>
+
+    <!-- UNIFIED DIRECTIVE INPUT -->
+    <section class="unified-input">
+      <h2>📥 Paste LLM Output Here</h2>
+      <p class="hint">Accepts: Natural Language • JSON • YAML • Verbose Markdown — Auto-detected!</p>
+
+      <div class="format-indicator">
+        <span id="detectedFormat" class="format-badge">Waiting for input...</span>
+      </div>
+
+      <textarea id="unifiedInput" placeholder="Paste anything from an external LLM here:
+
+• Natural language: 'Create an Express API with JWT auth'
+• JSON directive: { &quot;type&quot;: &quot;directive&quot;, ... }
+• YAML: type: directive ...
+• Verbose Markdown: Full deployment guides with embedded directives
+
+All formats will be parsed and shown for review before execution." rows="12"></textarea>
+
+      <button id="parseInputBtn" class="primary parse-btn">🔍 Parse & Review</button>
+
+      <!-- Plan Review Area (Hidden until parsed) -->
+      <div id="planReview" class="plan-review hidden">
+        <h3>🛡️ Execution Plan <span class="hard-stop-badge">HARD STOP</span></h3>
+
+        <!-- Detected Format -->
+        <div class="detected-format-display">
+          <span class="label">Detected Format:</span>
+          <span id="parsedFormatDisplay" class="format-value">Unknown</span>
+        </div>
+
+        <!-- Plain English Summary -->
+        <div class="plain-english-summary">
+          <h4>📝 What the LLM wants to do:</h4>
+          <p id="planSummary" class="summary-text">"..."</p>
+        </div>
+
+        <div class="plan-meta">
+          <span id="planRisk" class="risk-badge">SAFE</span>
+          <span id="planId" class="plan-id"></span>
+        </div>
+
+        <div class="plan-section">
+          <h4>📋 Steps to Execute:</h4>
+          <div class="plan-steps" id="planSteps"></div>
+        </div>
+
+        <div class="plan-section">
+          <h4>📦 Templates Being Applied:</h4>
+          <div class="plan-templates" id="planTemplates"></div>
+        </div>
+
+        <div class="plan-section" id="warningsSection">
+          <h4>⚠️ Warnings:</h4>
+          <div class="plan-warnings" id="planWarnings"></div>
+        </div>
+
+        <div class="plan-actions-fire">
+          <button id="fireToAntigravityBtn" class="go-btn">🔥 GO MOTHERFUCKER</button>
+          <button id="cancelPlanBtn" class="cancel-btn">❌ Cancel</button>
+        </div>
+
+        <p class="fire-note">👆 Clicking GO sends this directive to Antigravity for immediate execution.</p>
+
+        <p id="queueStatus" class="queue-status hidden">✅ Queued! Antigravity will execute shortly...</p>
+      </div>
+    </section>
+
+    <!-- OUTPUT AREA -->
+    <section class="output-area" id="outputArea" hidden>
+      <h2>Execution Summary</h2>
+      <pre id="outputLog"></pre>
+    </section>
+
+    <div id="spinnerOverlay" class="spinner-overlay hidden">
+      <div class="spinner"></div>
+      <p id="spinnerMessage"></p>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

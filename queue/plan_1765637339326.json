@@ -1,0 +1,135 @@
+{
+  "id": "plan_1765637339326",
+  "status": "pending",
+  "queuedAt": "2025-12-13T14:49:22.964Z",
+  "originalCommand": "Post-Review Deployment Checklist - Step-by-step guide to deploy quality improvements",
+  "plan": [
+    {
+      "step": 1,
+      "action": "Apply template",
+      "template": "npm_project_init",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 2,
+      "action": "Apply template",
+      "template": "git_repo_setup",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 3,
+      "action": "Apply template",
+      "template": "python_venv_setup",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 4,
+      "action": "Apply template",
+      "template": "env_config_setup",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 5,
+      "action": "Apply template",
+      "template": "api_scaffold",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 6,
+      "action": "Apply template",
+      "template": "api_security_setup",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 7,
+      "action": "Apply template",
+      "template": "jwt_auth_setup",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 8,
+      "action": "Apply template",
+      "template": "redis_cache_setup",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 9,
+      "action": "Apply template",
+      "template": "github_actions_cicd",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 10,
+      "action": "Apply template",
+      "template": "deploy_static_site",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 11,
+      "action": "Apply template",
+      "template": "file_upload_setup",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 12,
+      "action": "Apply template",
+      "template": "logging_setup",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 13,
+      "action": "Apply template",
+      "template": "testing_setup",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 14,
+      "action": "Apply template",
+      "template": "frontend_setup",
+      "type": "template",
+      "risk": "safe"
+    },
+    {
+      "step": 15,
+      "action": "npm install",
+      "type": "command",
+      "risk": "caution"
+    }
+  ],
+  "templates": [
+    "npm_project_init",
+    "git_repo_setup",
+    "python_venv_setup",
+    "env_config_setup",
+    "api_scaffold",
+    "api_security_setup",
+    "jwt_auth_setup",
+    "redis_cache_setup",
+    "github_actions_cicd",
+    "deploy_static_site",
+    "file_upload_setup",
+    "logging_setup",
+    "testing_setup",
+    "frontend_setup"
+  ],
+  "warnings": [
+    "Will download npm packages",
+    "Will create new files/directories",
+    "⚠️ DESTRUCTIVE OPERATION - Files may be deleted"
+  ],
+  "overallRisk": "danger",
+  "antigravityPrompt": "EXECUTE APPROVED DIRECTIVE FROM HANDS PROTOCOL:\n\nOriginal Request: \"Post-Review Deployment Checklist - Step-by-step guide to deploy quality improvements\"\n\nTemplates to Apply: npm_project_init, git_repo_setup, python_venv_setup, env_config_setup, api_scaffold, api_security_setup, jwt_auth_setup, redis_cache_setup, github_actions_cicd, deploy_static_site, file_upload_setup, logging_setup, testing_setup, frontend_setup\n\nSteps:\n1. [template] Apply template: npm_project_init\n2. [template] Apply template: git_repo_setup\n3. [template] Apply template: python_venv_setup\n4. [template] Apply template: env_config_setup\n5. [template] Apply template: api_scaffold\n6. [template] Apply template: api_security_setup\n7. [template] Apply template: jwt_auth_setup\n8. [template] Apply template: redis_cache_setup\n9. [template] Apply template: github_actions_cicd\n10. [template] Apply template: deploy_static_site\n11. [template] Apply template: file_upload_setup\n12. [template] Apply template: logging_setup\n13. [template] Apply template: testing_setup\n14. [template] Apply template: frontend_setup\n15. [command] npm install\n\nGO AHEAD - Execute all steps above. This directive was reviewed and approved by the user in Hands Protocol."
+}
