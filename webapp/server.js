@@ -10,6 +10,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
+const { interpretNL } = require('./interpret');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -264,7 +265,7 @@ function generatePlan(command) {
 }
 
 // POST /api/parse - UNIFIED SMART PARSER for all formats
-app.post('/api/parse', (req, res) => {
+app.post('/api/parse', async (req, res) => {
     const { input } = req.body;
     if (!input || typeof input !== 'string') {
         return res.status(400).json({ error: 'Missing "input" field (string)' });
@@ -378,8 +379,25 @@ app.post('/api/parse', (req, res) => {
         }
         // Natural language fallback
         else {
-            detectedFormat = 'natural_language';
-            description = trimmed.substring(0, 200);
+            try {
+                // Try LLM interpretation first
+                const llmResult = await interpretNL(trimmed);
+                parsed = llmResult;
+                detectedFormat = 'json_llm';
+
+                // Map fields
+                description = parsed.description || trimmed.substring(0, 200);
+                workingDirectory = parsed.workingDirectory || '';
+                steps = parsed.steps || [];
+                templates = parsed.templates || [];
+                warnings = parsed.warnings || [];
+
+            } catch (ignore) {
+                console.warn('LLM Interpret failed:', ignore.message);
+                // Fallback to keyword match if LLM fails
+                detectedFormat = 'natural_language';
+                description = trimmed.substring(0, 200);
+            }
         }
     } catch (e) {
         // Parsing failed, treat as natural language
