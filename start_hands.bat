@@ -51,5 +51,13 @@ rem ---- Open Antigravity Chat (VS Code with HANDS workspace) ----
 rem This opens VS Code to the HANDS folder so Antigravity can monitor/execute
 start "" code "C:\Y-OS\Y-IT_ENGINES\HANDS"
 
+rem ---- Start the Queue Watcher (monitors for new tasks) ----
+if exist "C:\Y-OS\Y-IT_ENGINES\HANDS\queueWatcher.js" (
+    start "QueueWatcher" cmd /k "cd /d C:\Y-OS\Y-IT_ENGINES\HANDS && node queueWatcher.js"
+    echo [OK] Queue Watcher started.
+) else (
+    echo [WARN] queueWatcher.js not found - skipping queue monitor.
+)
+
 rem Keep the batch window open so you can see any messages
 pause
