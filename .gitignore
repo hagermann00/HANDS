@@ -25,3 +25,6 @@ Thumbs.db
 # Queue (runtime data)
 queue/*.json
 !queue/.gitkeep
+
+# Backups
+queue_backup_*/
